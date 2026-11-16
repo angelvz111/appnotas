@@ -1,0 +1,13 @@
+{
+  "name": "FreeNotas",
+  "short_name": "FreeNotas",
+  "description": "Cuadernos digitales para apuntes con lápiz",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#eef0f4",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

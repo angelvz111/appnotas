@@ -1,0 +1,8 @@
+# Nunca subir llaves, contraseñas ni configuración privada
+.env
+.env.*
+*.key
+*.pem
+secrets/
+node_modules/
+.DS_Store

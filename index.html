@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#16171b">
+  <!-- Seguridad: sólo se cargan scripts propios (y el generador de PDF), nada de código externo inyectado -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>FreeNotas</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Tipografías: interfaz, pinceles (cursiva, lettering…) y base de letras para el corrector -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@400;700&family=Comfortaa:wght@500;700&family=Covered+By+Your+Grace&family=Dancing+Script:wght@500;700&family=Fredoka:wght@500;700&family=Gloria+Hallelujah&family=Gochi+Hand&family=Great+Vibes&family=Indie+Flower&family=Just+Another+Hand&family=Kalam:wght@400;700&family=Kaushan+Script&family=Lobster&family=Mansalva&family=Nanum+Pen+Script&family=Neucha&family=Nunito:wght@400;600;700;800&family=Pacifico&family=Patrick+Hand&family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&family=Quicksand:wght@500;600;700&family=Reenie+Beanie&family=Sacramento&family=Satisfy&family=Schoolbell&family=Shadows+Into+Light&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ================= Biblioteca ================= -->
+  <section id="library" class="view">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><img src="icon.svg" alt=""><span>FreeNotas</span></div>
+      <button class="side-item" id="sMaterials"><span class="si" data-icon="sticker"></span>Centro de materiales</button>
+      <button class="side-item" id="sAll"><span class="si" data-icon="book"></span>Todos los cuadernos<span class="count" id="countAll"></span></button>
+      <div class="side-head"><span>Carpetas</span><button class="ib sm" id="sAddFolder" title="Nueva carpeta"><span data-icon="folderPlus"></span></button></div>
+      <div id="folderList"></div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <main class="lib-main">
+      <header class="lib-top">
+        <button class="ib menu-btn" id="sideToggle" title="Carpetas"><span data-icon="menu"></span></button>
+        <h1 id="libTitle">Todos los cuadernos</h1>
+        <div class="lib-actions">
+          <input id="libSearch" class="search hidden" placeholder="Buscar cuaderno…">
+          <button class="ib" id="libSearchBtn" title="Buscar"><span data-icon="search"></span></button>
+          <button class="ib theme-btn" title="Tema: automático / claro / oscuro"></button>
+          <button class="ib accent" id="libAdd" title="Nuevo"><span data-icon="plus"></span></button>
+        </div>
+      </header>
+      <div id="nbGrid" class="nb-grid"></div>
+      <div id="libEmpty" class="lib-empty hidden">
+        <div class="empty-art" data-icon="tooth"></div>
+        <p>Aquí vivirán tus cuadernos.<br>Toca <b>+</b> para crear el primero.</p>
+      </div>
+    </main>
+  </section>
+
+  <!-- ================= Editor ================= -->
+  <section id="editor" class="view hidden">
+    <header class="ebar">
+      <button class="ib" id="eBack" title="Biblioteca"><span data-icon="back"></span></button>
+      <button class="ib" id="ePages" title="Páginas"><span data-icon="grid"></span></button>
+      <button class="ib" id="eUndo" title="Deshacer"><span data-icon="undo"></span></button>
+      <button class="ib" id="eRedo" title="Rehacer"><span data-icon="redo"></span></button>
+      <div class="etitle" id="eTitle"></div>
+      <button class="ib" id="ePageDark" title="Hoja en modo oscuro (tinta blanca)"><span data-icon="pageDark"></span></button>
+      <button class="ib theme-btn" title="Tema: automático / claro / oscuro"></button>
+      <button class="ib" id="eLayers" title="Capas"><span data-icon="layers"></span></button>
+      <button class="ib" id="eAssist" title="Asistente sin internet"><span data-icon="brain"></span></button>
+      <button class="ib" id="ePdf" title="Exportar PDF"><span data-icon="download"></span></button>
+    </header>
+
+    <div id="stage">
+      <div id="pageWrap">
+        <div id="page">
+          <canvas id="bg"></canvas>
+          <div id="layerStack"></div>
+          <canvas id="live"></canvas>
+          <div id="selBox" class="selbox hidden">
+            <div class="sel-actions"></div>
+            <span class="sel-handle" title="Arrastra para cambiar el tamaño"></span>
+          </div>
+          <div id="suggest" class="suggest hidden"></div>
+        </div>
+      </div>
+      <div id="addHint" class="add-hint"><span data-icon="plus"></span><b>Nueva página</b></div>
+    </div>
+
+    <button id="zoomPill" class="zoompill" title="Toca para bloquear el zoom · doble toque = 100%"></button>
+    <div class="pager">
+      <button id="pPrev" title="Página anterior"><span data-icon="back"></span></button>
+      <span id="pNum"></span>
+      <button id="pNext" title="Página siguiente"><span data-icon="fwd"></span></button>
+    </div>
+    <nav id="pill" class="pill"></nav>
+    <aside id="sidePanel" class="panel hidden"></aside>
+  </section>
+
+  <dialog id="sheet" class="sheet"></dialog>
+  <dialog id="modal" class="modal"></dialog>
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
