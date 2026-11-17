@@ -12,7 +12,7 @@ const types = {
   '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8',
 };
 // Lista blanca: sólo lo que la app necesita
-const ALLOWED = /^\/(index\.html|styles\.css|manifest\.json|icon\.svg|sw\.js|js\/[a-z]+\.js|dict\/(es|en)\.txt)$/;
+const ALLOWED = /^\/(index\.html|styles\.css|manifest\.json|icon\.svg|icon-(192|512|maskable-512)\.png|sw\.js|js\/[a-z]+\.js|dict\/(es|en)\.txt)$/;
 
 const CSP = [
   "default-src 'self'",

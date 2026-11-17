@@ -1,13 +1,20 @@
 {
+  "id": "./",
   "name": "FreeNotas",
   "short_name": "FreeNotas",
-  "description": "Cuadernos digitales para apuntes con lápiz",
+  "description": "Cuadernos digitales para apuntes con lápiz, con corrector de letra que funciona sin internet",
+  "lang": "es",
   "start_url": "./",
-  "display": "fullscreen",
+  "scope": "./",
+  "display": "standalone",
   "orientation": "any",
-  "background_color": "#eef0f4",
+  "background_color": "#f3f4f8",
   "theme_color": "#4f46e5",
+  "categories": ["education", "productivity"],
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }
