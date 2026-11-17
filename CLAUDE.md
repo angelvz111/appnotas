@@ -43,8 +43,15 @@ En el panel del navegador se puede simular letra a mano dibujando el "esqueleto"
 están en la base (Segoe Print, Comic Sans MS, Ink Free) y pasando los trazos a `recognize()` de `js/handwriting.js`.
 Última medición: Segoe Print 19/22 palabras (incluye "kevin"), 0 palabras falsas cambiadas.
 
+## Publicación (ya está en línea)
+- Dirección: **https://angelvz111.github.io/appnotas/** (GitHub Pages, repo público `angelvz111/appnotas`, rama `main`).
+- Se instala como app desde Chrome/Edge (lap) o Chrome (tablet Android) y funciona sin internet.
+- Para publicar una mejora: `git add -A`, `git commit`, `git push`. Pages se actualiza en ~1 min.
+  En esta compu git y gh están en `C:\Program Files\Git\cmd` y `C:\Program Files\GitHub CLI` (puede que no estén en el PATH de la sesión).
+- **Siempre sube `CACHE` en `sw.js`** al publicar cambios, para que las apps instaladas reciban la versión nueva.
+- Los cuadernos NO se suben: viven en el IndexedDB de cada dispositivo.
+
 ## Pendiente / ideas
-- Publicarla con https (GitHub Pages) para instalarla en la tablet; luego cada mejora = subir cambios.
 - Cursiva continua, letra muy espaciada.
 - IA que redacte resúmenes (hoy son extractivos) — sólo con servidor intermediario o modelo local pesado.
 - Modo de dibujo tipo ibisPaint con pinceles especiales.
