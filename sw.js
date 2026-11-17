@@ -1,6 +1,6 @@
 // Permite usar la app sin internet: al instalarse guarda la app, los diccionarios, las tipografías
 // (versión latina) y los lectores de PDF, para que todo funcione aunque nunca se hayan usado con wifi.
-const CACHE = 'freenotas-v5';
+const CACHE = 'freenotas-v6';
 const FILES = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'js/main.js', 'js/util.js', 'js/db.js', 'js/paper.js', 'js/ink.js', 'js/assets.js', 'js/model.js', 'js/dict.js',

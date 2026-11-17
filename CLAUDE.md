@@ -37,6 +37,11 @@ No hay build ni dependencias: HTML + CSS + JavaScript (módulos ES) puro. Todo s
 4. Coordenadas lógicas fijas de página: **1240 × 1754** (A4). Los trazos se guardan así.
 5. Si agregas archivos nuevos: súmalos a la lista de `sw.js` (y sube `CACHE`), y a la lista blanca de `serve.js`.
 6. La CSP en `index.html` y `serve.js` bloquea `eval`; sólo se permite cdnjs para scripts.
+7. **Lápiz y palma**: toda la entrada pasa por `#stage` (`onDown/onMove/onUp` en `editor.js`). Nunca uses
+   `touch-action: pan-*` en la hoja: en Android también aplica al lápiz y el navegador cancela los trazos.
+   El desplazamiento con dedo lo hace la app (`startPan`). La palma se descarta por tamaño de contacto (> 34 px)
+   o porque el lápiz está escribiendo/cerca (500 ms). Modos en `S.inputMode`: auto, pen, strict, passive, finger
+   (menú del ícono de la mano, con "Prueba tu lápiz").
 
 ## Probar el reconocimiento
 En el panel del navegador se puede simular letra a mano dibujando el "esqueleto" de tipografías de Windows que no

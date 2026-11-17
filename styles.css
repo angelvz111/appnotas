@@ -183,6 +183,7 @@ input[type=checkbox] { width: 20px; min-height: 20px; accent-color: var(--accent
 #page canvas, #layerStack canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #layerStack { position: absolute; inset: 0; pointer-events: none; }
 #live { touch-action: none; cursor: crosshair; }
+#stage { touch-action: none; }
 
 .add-hint {
   position: fixed; right: 18px; top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none;
@@ -488,6 +489,16 @@ textarea { font: inherit; color: var(--text); background: var(--panel-2); border
 .sum-list .pg { margin-left: 6px; border: 0; background: var(--panel-2); color: var(--muted); border-radius: 999px; font-size: 11px; padding: 2px 8px; }
 .result b { font-size: 14px; }
 .theme-btn svg { width: 21px; height: 21px; }
+
+/* ---------- Menú de lápiz y palma ---------- */
+.input-pop { width: min(340px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 8px; padding: 6px; }
+.modes { display: flex; flex-direction: column; gap: 6px; }
+.mode-row { text-align: left; border: 1px solid transparent; background: var(--panel-2); border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.mode-row small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.mode-row.on { border-color: var(--accent); background: var(--accent-soft); }
+.probe { height: 110px; border-radius: 12px; background: #fff; color: #1c1f26; border: 2px dashed var(--line); touch-action: none; display: grid; place-items: center; padding: 8px; text-align: center; }
+.probe-out { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.probe-out small { color: #6b7280; }
 
 /* ---------- Aviso ---------- */
 .toast {

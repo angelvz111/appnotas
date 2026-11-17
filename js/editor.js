@@ -32,7 +32,7 @@ export const S = {
   straight: false,
   ai: { on: true, brush: 'texto', unify: true, snap: true, suggest: true, dict: true },
   pillPos: null, pageDark: false,
-  penOnly: false, penSeen: false, zoom: 1, zoomLock: false, scale: 1,
+  inputMode: 'auto', penSeen: false, zoom: 1, zoomLock: false, scale: 1,
   undo: [], redo: [], sel: null,
 };
 const size = (t = S.tool) => S.presets[t][S.sizeIdx[t]];
@@ -60,7 +60,7 @@ function savePrefs() {
   clearTimeout(prefT);
   prefT = setTimeout(() => setKV('prefs', {
     colors: S.colors, quick: S.quick, presets: S.presets, sizeIdx: S.sizeIdx,
-    straight: S.straight, ai: S.ai, pillPos: S.pillPos, pageDark: S.pageDark,
+    straight: S.straight, ai: S.ai, pillPos: S.pillPos, pageDark: S.pageDark, inputMode: S.inputMode, penSeen: S.penSeen,
   }), 400);
 }
 
@@ -132,7 +132,7 @@ function prevPage() { if (S.pageIdx > 0) slide(S.pageIdx - 1, -1); }
 /* ================= Lienzo ================= */
 function layout() {
   const st = $('#stage');
-  const fit = Math.min((st.clientWidth - 40) / W, 1.3);
+  const fit = Math.min((st.clientWidth - 48) / W, 1.3); // deja aire para que no salga barra horizontal
   const cssW = Math.round(W * fit * S.zoom);
   const pg = $('#page');
   pg.style.width = cssW + 'px';
@@ -280,18 +280,63 @@ function toPage(e) {
 const pressureOf = (e) => (e.pointerType === 'pen' ? Math.max(0.05, e.pressure || 0.5) : 0.5);
 const capture = (target, id) => { try { target.setPointerCapture(id); } catch { /* puntero ya liberado */ } };
 
-function onDown(e) {
-  if (e.pointerType === 'pen' && !S.penSeen) {
+/* ---------- Lápiz, dedos y palma ----------
+ Modos (S.inputMode):
+  auto    → como "finger" hasta que aparece un lápiz; luego como "pen"
+  pen     → el lápiz dibuja · 1 dedo desplaza/cambia página · la palma se ignora
+  strict  → el lápiz dibuja · 1 dedo NO hace nada (apoya la mano tranquila) · 2 dedos desplazan/zoom
+  passive → lápiz sin batería: toques de punta fina dibujan, los demás desplazan
+  finger  → el dedo dibuja (sin lápiz)
+ La palma se reconoce por su tamaño de contacto y porque el lápiz está cerca o escribiendo. */
+const ignored = new Set();   // toques descartados (palma) durante toda su vida
+let penDown = false, lastPen = -1e9;
+const PALM = 34;             // px de contacto: más grande que esto es palma/mano
+const TIP = 12;              // px: punta de lápiz pasivo
+function inputMode() {
+  const m = S.inputMode || 'auto';
+  return m === 'auto' ? (S.penSeen ? 'pen' : 'finger') : m;
+}
+const contact = (e) => Math.max(e.width || 0, e.height || 0);
+const penNear = () => penDown || performance.now() - lastPen < 500;
+function notePen(e) {
+  if (e.pointerType !== 'pen') return;
+  lastPen = performance.now();
+  if (!S.penSeen) {
     S.penSeen = true;
-    if (!S.penOnly) { setPenOnly(true); toast('Lápiz detectado ✍️ Con el dedo deslizas páginas y desplazas.'); }
+    savePrefs();
+    if ((S.inputMode || 'auto') === 'auto') toast('Lápiz detectado ✍️ El lápiz escribe, un dedo desplaza y la palma se ignora.', 4000);
   }
+}
+function isPalm(e) {
+  const mode = inputMode();
+  if (contact(e) > (mode === 'finger' ? 48 : PALM)) return true;
+  return mode !== 'finger' && penNear();
+}
+
+function onDown(e) {
+  cancelAnimationFrame(glide); // cualquier toque frena la inercia del desplazamiento
+  notePen(e);
+  if (e.pointerType === 'pen') penDown = true;
   if (e.pointerType === 'touch') {
+    if (isPalm(e)) { ignored.add(e.pointerId); return; }
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pointers.size === 2) { cancelGesture(); startPinch(); return; }
+    if (pointers.size === 2) {
+      // No interrumpas un trazo del lápiz por dos toques: sólo los gestos de dedo se convierten en zoom
+      if (G && G.id !== undefined && !pointers.has(G.id) && G.type !== 'pan') return;
+      cancelGesture(); startPinch(); return;
+    }
     if (pointers.size > 2) return;
-    if (S.penOnly) { startSwipe(e); return; }
+    const mode = inputMode();
+    const drawsWithTouch = mode === 'finger' || (mode === 'passive' && contact(e) <= TIP);
+    if (!drawsWithTouch) {
+      if (G && G.type !== 'pan') return; // ya hay un trazo/gesto del lápiz en curso
+      if (mode !== 'strict') startPan(e);
+      return;
+    }
   }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (e.target !== live()) return; // trazos sólo sobre la hoja
+  if (G && G.type !== 'pan') return;
   closePopover();
   hideSuggest();
   const p = toPage(e);
@@ -318,10 +363,13 @@ function onDown(e) {
 }
 
 function onMove(e) {
+  notePen(e);
+  if (ignored.has(e.pointerId)) return;
   if (e.pointerType === 'touch' && pointers.has(e.pointerId)) pointers.set(e.pointerId, [e.clientX, e.clientY]);
-  if (!G) { if (S.tool === 'eraser' && e.pointerType !== 'touch') eraserCursor(toPage(e)); return; }
+  if (!G) { if (S.tool === 'eraser' && e.pointerType !== 'touch' && e.target === live()) eraserCursor(toPage(e)); return; }
   if (G.type === 'pinch') return updatePinch();
   if (G.id !== e.pointerId) return;
+  if (G.type === 'pan') return updatePan(e);
   if (G.type === 'swipe') return updateSwipe(e);
   if (G.type === 'gmove' || G.type === 'gscale') return updateGroup(e);
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
@@ -342,6 +390,8 @@ function onMove(e) {
 }
 
 function onUp(e) {
+  if (e.pointerType === 'pen') { penDown = false; lastPen = performance.now(); }
+  if (ignored.delete(e.pointerId)) return;
   if (e.pointerType === 'touch') pointers.delete(e.pointerId);
   if (!G) return;
   if (G.type === 'pinch') { if (pointers.size < 2) endPinch(); return; }
@@ -349,6 +399,7 @@ function onUp(e) {
   const g = G;
   G = null;
   clearTimeout(holdTimer);
+  if (g.type === 'pan') return endPan(g);
   if (g.type === 'swipe') return endSwipe(g);
   if (g.type === 'gmove' || g.type === 'gscale') return endGroup(g);
   if (g.type === 'lasso') return endLasso(g);
@@ -357,6 +408,86 @@ function onUp(e) {
     if (e.type === 'pointercancel' && g.stroke.points.length < 3) { clearLive(); return; }
     commitStroke(g);
   }
+}
+
+/* ---------- Menú: cómo usas el lápiz y los dedos (+ prueba en vivo) ---------- */
+const INPUT_MODES = [
+  ['auto', 'Automático', 'Detecta tu lápiz solo. Recomendado.'],
+  ['pen', 'Lápiz activo', 'El lápiz escribe · un dedo desplaza y cambia de página · la palma se ignora.'],
+  ['strict', 'Apoyar la mano', 'El lápiz escribe · un dedo NO hace nada · desplaza y haz zoom con DOS dedos.'],
+  ['passive', 'Lápiz sin batería', 'Para lápices de goma o pasivos: punta fina escribe, dedo grande desplaza.'],
+  ['finger', 'Dedo dibuja', 'Sin lápiz: escribes con el dedo · dos dedos desplazan.'],
+];
+function inputMenu(anchor) {
+  if (popoverOpenFor(anchor)) { closePopover(); return; }
+  const out = el('div', { class: 'probe-out' }, 'Toca o escribe en este recuadro…');
+  const probe = el('div', { class: 'probe' }, out);
+  const show = (e) => {
+    const kind = { pen: '✍️ Lápiz', touch: '☝️ Dedo o palma', mouse: '🖱️ Mouse' }[e.pointerType] || e.pointerType;
+    const c = Math.round(contact(e));
+    let verdict = '';
+    if (e.pointerType === 'pen') verdict = 'Tu lápiz se detecta bien como lápiz.';
+    else if (e.pointerType === 'touch') verdict = c > PALM ? 'Esto se toma como palma: se ignora.' : c <= TIP ? 'Punta fina: si tu lápiz sale así, elige “Lápiz sin batería”.' : 'Esto se toma como dedo.';
+    out.replaceChildren(el('b', {}, kind), el('span', {}, 'presión ' + e.pressure.toFixed(2) + ' · contacto ' + c + ' px'), el('small', {}, verdict));
+  };
+  probe.addEventListener('pointerdown', (e) => { e.stopPropagation(); show(e); });
+  probe.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'pen') show(e); });
+  const list = el('div', { class: 'modes' });
+  const render = () => list.replaceChildren(...INPUT_MODES.map(([k, n, d]) => el('button', {
+    class: 'mode-row' + ((S.inputMode || 'auto') === k ? ' on' : ''),
+    onclick: () => {
+      S.inputMode = k;
+      savePrefs();
+      render();
+      toast(k === 'auto' ? (S.penSeen ? 'Automático · lápiz ya detectado' : 'Automático · aún no detecto lápiz') : n);
+    },
+  }, el('b', {}, n), el('small', {}, d))));
+  render();
+  popover(anchor, el('div', { class: 'input-pop' },
+    el('div', { class: 'pop-title' }, 'Lápiz, dedos y palma'),
+    list,
+    el('div', { class: 'pop-title' }, 'Prueba tu lápiz'),
+    probe), { side: 'under' });
+}
+
+/* ---------- Desplazar con un dedo (lo controla la app, no el navegador) ---------- */
+let glide = 0;
+function startPan(e) {
+  cancelAnimationFrame(glide);
+  const st = $('#stage');
+  G = { type: 'pan', id: e.pointerId, x0: e.clientX, y0: e.clientY, s0: [st.scrollLeft, st.scrollTop], last: [e.clientX, e.clientY, performance.now()], v: [0, 0], axis: null };
+  capture($('#stage'), e.pointerId);
+}
+function updatePan(e) {
+  const st = $('#stage');
+  const dx = e.clientX - G.x0, dy = e.clientY - G.y0;
+  if (!G.axis) {
+    if (Math.hypot(dx, dy) < 10) return;
+    const canScrollX = S.zoom > 1.01 && st.scrollWidth > st.clientWidth + 24; // sólo con zoom de verdad
+    // gesto horizontal sin zoom = cambiar de página
+    if (!canScrollX && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      G = { type: 'swipe', id: G.id, x0: G.x0, y0: G.y0, dx: 0, active: false };
+      return updateSwipe(e);
+    }
+    G.axis = 'scroll';
+  }
+  st.scrollLeft = G.s0[0] - dx;
+  st.scrollTop = G.s0[1] - dy;
+  const now = performance.now(), dt = Math.max(8, now - G.last[2]);
+  G.v = [(e.clientX - G.last[0]) / dt, (e.clientY - G.last[1]) / dt];
+  G.last = [e.clientX, e.clientY, now];
+}
+function endPan(g) {
+  // inercia suave al soltar
+  let [vx, vy] = g.v.map((v) => v * 16);
+  const st = $('#stage');
+  const step = () => {
+    if (Math.abs(vx) < 0.4 && Math.abs(vy) < 0.4) return;
+    st.scrollLeft -= vx; st.scrollTop -= vy;
+    vx *= 0.94; vy *= 0.94;
+    glide = requestAnimationFrame(step);
+  };
+  if (performance.now() - g.last[2] < 80) glide = requestAnimationFrame(step);
 }
 
 function cancelGesture() {
@@ -1096,10 +1227,6 @@ function updateZoomPill() {
   p.replaceChildren(el('span', {}, Math.round(S.zoom * 100) + '%'), icon(S.zoomLock ? 'lock' : 'unlock', 14));
   p.classList.toggle('on', S.zoomLock);
 }
-function setPenOnly(on) {
-  S.penOnly = on;
-  live().style.touchAction = on ? 'pan-y' : 'none';
-}
 
 /* ================= Barra flotante (arrastrable) ================= */
 function selectTool(t) {
@@ -1550,24 +1677,29 @@ export async function initEditor() {
     HW.profile.brushesV2 = true;
     HW.saveProfile();
   }
-  const lv = live();
-  lv.addEventListener('pointerdown', onDown);
-  lv.addEventListener('pointermove', onMove);
-  lv.addEventListener('pointerup', onUp);
-  lv.addEventListener('pointercancel', onUp);
-  lv.addEventListener('pointerleave', () => { if (!G) clearLive(); });
-  setPenOnly(false);
+  // Toda la entrada pasa por el área de la hoja: así controlamos palma, desplazamiento y zoom
+  const stage = $('#stage');
+  stage.addEventListener('pointerdown', onDown);
+  stage.addEventListener('pointermove', onMove);
+  stage.addEventListener('pointerup', onUp);
+  stage.addEventListener('pointercancel', onUp);
+  live().addEventListener('pointerleave', () => { if (!G) clearLive(); });
+  // El lápiz flotando cerca de la pantalla (S Pen, etc.) también cuenta para ignorar la palma
+  document.addEventListener('pointermove', (e) => { if (e.pointerType === 'pen') lastPen = performance.now(); }, { passive: true });
 
   const box = $('#selBox');
   box.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.sel-actions')) return;
     e.stopPropagation();
-    if (e.pointerType === 'touch') pointers.set(e.pointerId, [e.clientX, e.clientY]);
+    notePen(e);
+    if (e.pointerType === 'touch') {
+      if (isPalm(e)) { ignored.add(e.pointerId); return; }
+      pointers.set(e.pointerId, [e.clientX, e.clientY]);
+    }
+    if (e.pointerType === 'pen') penDown = true;
     beginGroup(e, toPage(e), e.target.closest('.sel-handle') ? 'gscale' : 'gmove', box);
   });
-  box.addEventListener('pointermove', onMove);
-  box.addEventListener('pointerup', onUp);
-  box.addEventListener('pointercancel', onUp);
+  // (sus movimientos y el soltar llegan a #stage)
 
   $('#eBack').onclick = () => { runAI(); saveNow(); closePopover(); hideSuggest(); S.nb = null; emit('library'); };
   $('#eUndo').onclick = () => applyHistory(S.undo, S.redo, 'before');
@@ -1576,6 +1708,7 @@ export async function initEditor() {
   $('#eLayers').onclick = () => (panelKind === 'layers' ? closePanel() : renderLayers());
   $('#eAssist').onclick = () => (panelKind === 'assistant' ? closePanel() : openAssistant(assistantApi));
   $('#ePdf').onclick = exportPdf;
+  $('#eInput').onclick = (e) => inputMenu(e.currentTarget);
   setPageDark(!!S.pageDark);
   $('#ePageDark').onclick = () => {
     setPageDark(!S.pageDark);
